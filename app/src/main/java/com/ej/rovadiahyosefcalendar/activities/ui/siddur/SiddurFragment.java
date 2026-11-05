@@ -1,5 +1,6 @@
 package com.ej.rovadiahyosefcalendar.activities.ui.siddur;
 
+import com.ej.rovadiahyosefcalendar.classes.handasi.HandasiHazemanCalendar;
 import static android.content.Context.MODE_PRIVATE;
 import static com.ej.rovadiahyosefcalendar.activities.MainFragmentManagerActivity.SHARED_PREF;
 import static com.ej.rovadiahyosefcalendar.activities.MainFragmentManagerActivity.materialToolbar;
@@ -213,7 +214,7 @@ public class SiddurFragment extends Fragment {
 
         private void initView() {
             if (mActivity == null || mContext == null) return;
-            currentZmanimCalendar = new ROZmanimCalendar(new LocationResolver(mContext, mActivity).getRealtimeNotificationData(null, true));// the logic here is that because isForWidget returns right away. It is better than getting a callback for the current location and therefore causing the UI to delay. Besides, the location was already gotten by the Zmanim Fragment and saved when the user started the app, so there is no need to get it again.
+            currentZmanimCalendar = new HandasiHazemanCalendar(new LocationResolver(mContext, mActivity).getRealtimeNotificationData(null, true));// the logic here is that because isForWidget returns right away. It is better than getting a callback for the current location and therefore causing the UI to delay. Besides, the location was already gotten by the Zmanim Fragment and saved when the user started the app, so there is no need to get it again.
             currentZmanimCalendar.setLocalDate(LocalDate.now());// make sure the date is for right now when the user gets back to the page
             currentZmanimCalendar.setAmudehHoraah(PreferenceManager.getDefaultSharedPreferences(mContext).getBoolean("LuachAmudeiHoraah", false));
             currentJewishDateInfo = new JewishDateInfo(sJewishDateInfo.getJewishCalendar().getInIsrael());

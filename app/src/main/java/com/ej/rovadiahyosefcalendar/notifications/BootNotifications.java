@@ -1,5 +1,6 @@
 package com.ej.rovadiahyosefcalendar.notifications;
 
+import com.ej.rovadiahyosefcalendar.classes.handasi.HandasiHazemanCalendar;
 import static android.Manifest.permission.ACCESS_BACKGROUND_LOCATION;
 import static android.content.Context.ALARM_SERVICE;
 import static android.content.Context.MODE_PRIVATE;
@@ -52,24 +53,24 @@ public class BootNotifications extends BroadcastReceiver {
                         return;
                     }
                     if (location != null) {
-                        setDailyNotifications(context, new ROZmanimCalendar(new GeoLocation(
+                        setDailyNotifications(context, new HandasiHazemanCalendar(new GeoLocation(
                                 "",// not needed
                                 location.getLatitude(),
                                 location.getLongitude(),
                                 0,// it barely makes a difference on when the notification sends, not worth the network call IMO
                                 mLocationResolver.getZoneID())));
                     } else {
-                        setDailyNotifications(context, new ROZmanimCalendar(mLocationResolver.getLastKnownGeoLocation()));
+                        setDailyNotifications(context, new HandasiHazemanCalendar(mLocationResolver.getLastKnownGeoLocation()));
                     }
                     finishBroadcast();
                 }
                 , false);
                 if (!geoLocation.equals(new GeoLocation())) {
-                    setDailyNotifications(context, new ROZmanimCalendar(geoLocation));
+                    setDailyNotifications(context, new HandasiHazemanCalendar(geoLocation));
                     finishBroadcast();
                 }
             } else {
-                setDailyNotifications(context, new ROZmanimCalendar(mLocationResolver.getRealtimeNotificationData(null, false)));
+                setDailyNotifications(context, new HandasiHazemanCalendar(mLocationResolver.getRealtimeNotificationData(null, false)));
                 finishBroadcast();
             }
 

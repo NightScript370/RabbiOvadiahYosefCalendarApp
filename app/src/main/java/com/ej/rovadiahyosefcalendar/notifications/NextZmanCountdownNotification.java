@@ -1,5 +1,6 @@
 package com.ej.rovadiahyosefcalendar.notifications;
 
+import com.ej.rovadiahyosefcalendar.classes.handasi.HandasiHazemanCalendar;
 import static android.Manifest.permission.ACCESS_COARSE_LOCATION;
 import static android.Manifest.permission.ACCESS_FINE_LOCATION;
 import static android.content.pm.PackageManager.PERMISSION_GRANTED;
@@ -92,7 +93,6 @@ public class NextZmanCountdownNotification extends Service {
         mSettingsPreferences.registerOnSharedPreferenceChangeListener(settingsPrefListener);
         mLocationResolver = new LocationResolver(this, null);
         mROZmanimCalendar = getROZmanimCalendar(this);
-        mROZmanimCalendar.setExternalFilesDir(getExternalFilesDir(null));
         String candles = mSettingsPreferences.getString("CandleLightingOffset", "20");
         mROZmanimCalendar.setCandleLightingOffset(Utils.parseDoubleOrDefault(candles, 20));
         String shabbat = mSettingsPreferences.getString("EndOfShabbatOffset", mSharedPreferences.getBoolean("inIsrael", false) ? "30" : "40");
@@ -144,13 +144,12 @@ public class NextZmanCountdownNotification extends Service {
                 if (location != null) {
                     mLocationResolver.getFullLocationName(location.getLatitude(), location.getLongitude(), true, locationName ->
                             mLocationResolver.resolveElevation(() -> handler.post(() -> {
-                        mROZmanimCalendar = new ROZmanimCalendar(new GeoLocation(
+                        mROZmanimCalendar = new HandasiHazemanCalendar(new GeoLocation(
                                 locationName,
                                 location.getLatitude(),
                                 location.getLongitude(),
                                 mLocationResolver.getElevation(),
                                 mLocationResolver.getZoneID()));
-                        mROZmanimCalendar.setExternalFilesDir(getExternalFilesDir(null));
                         String candles = mSettingsPreferences.getString("CandleLightingOffset", "20");
                         mROZmanimCalendar.setCandleLightingOffset(Utils.parseDoubleOrDefault(candles, 20));
                         String shabbat = mSettingsPreferences.getString("EndOfShabbatOffset", mSharedPreferences.getBoolean("inIsrael", false) ? "30" : "40");
@@ -167,7 +166,7 @@ public class NextZmanCountdownNotification extends Service {
             }, false);
             // no need to worry about returning null here because the above code will reset everything
         }
-        return new ROZmanimCalendar(mLocationResolver.getRealtimeNotificationData(null, true));
+        return new HandasiHazemanCalendar(mLocationResolver.getRealtimeNotificationData(null, true));
     }
 
     @Override

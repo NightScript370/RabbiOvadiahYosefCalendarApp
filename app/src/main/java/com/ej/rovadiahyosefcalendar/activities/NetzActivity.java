@@ -1,5 +1,6 @@
 package com.ej.rovadiahyosefcalendar.activities;
 
+import com.ej.rovadiahyosefcalendar.classes.handasi.HandasiHazemanCalendar;
 import static com.ej.rovadiahyosefcalendar.activities.MainFragmentManagerActivity.SHARED_PREF;
 import static com.ej.rovadiahyosefcalendar.activities.MainFragmentManagerActivity.sCurrentLocationName;
 import static com.ej.rovadiahyosefcalendar.activities.MainFragmentManagerActivity.sCurrentTimeZoneID;
@@ -156,7 +157,6 @@ public class NetzActivity extends AppCompatActivity {
         mSharedPreferences = getSharedPreferences(SHARED_PREF, MODE_PRIVATE);
         setZmanimLanguageBools();
         mROZmanimCalendar = getROZmanimCalendar();
-        mROZmanimCalendar.setExternalFilesDir(getExternalFilesDir(null));
 
         startTimer();
     }
@@ -248,7 +248,7 @@ public class NetzActivity extends AppCompatActivity {
     }
 
     private static ROZmanimCalendar getROZmanimCalendar() {
-                return new ROZmanimCalendar(new GeoLocation(
+                return new HandasiHazemanCalendar(new GeoLocation(
                         sCurrentLocationName,
                         sLatitude,
                         sLongitude,

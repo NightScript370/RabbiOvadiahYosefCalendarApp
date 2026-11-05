@@ -1,5 +1,6 @@
 package com.ej.rovadiahyosefcalendar.activities;
 
+import com.ej.rovadiahyosefcalendar.classes.handasi.HandasiHazemanCalendar;
 import static android.Manifest.permission.ACCESS_COARSE_LOCATION;
 import static android.Manifest.permission.ACCESS_FINE_LOCATION;
 import static android.Manifest.permission.FOREGROUND_SERVICE_LOCATION;
@@ -48,7 +49,6 @@ import com.ej.rovadiahyosefcalendar.activities.ui.DailySummaryController;
 import com.ej.rovadiahyosefcalendar.activities.ui.limudiim.LimudFragment;
 import com.ej.rovadiahyosefcalendar.activities.ui.siddur.SiddurFragment;
 import com.ej.rovadiahyosefcalendar.activities.ui.zmanim.ZmanimFragment;
-import com.ej.rovadiahyosefcalendar.classes.ChaiTablesWebJava;
 import com.ej.rovadiahyosefcalendar.classes.DailyEntriesBuilder;
 import com.ej.rovadiahyosefcalendar.classes.ExceptionHandler;
 import com.ej.rovadiahyosefcalendar.classes.JewishDateInfo;
@@ -97,7 +97,7 @@ public class MainFragmentManagerActivity extends AppCompatActivity {
     public static String sCurrentTimeZoneID = TimeZone.getDefault().getID();//e.g. "America/New_York"
 
     // KosherJava classes
-    public static ROZmanimCalendar sROZmanimCalendar = new ROZmanimCalendar(new GeoLocation());// avoid NPE
+    public static ROZmanimCalendar sROZmanimCalendar = new HandasiHazemanCalendar(new GeoLocation());// avoid NPE
     public final static JewishDateInfo sJewishDateInfo = new JewishDateInfo(false);
     public static HebrewDateFormatter sHebrewDateFormatter = new HebrewDateFormatter();
 
@@ -189,26 +189,11 @@ public class MainFragmentManagerActivity extends AppCompatActivity {
             sSharedPreferences.edit().putBoolean("massUpdateCheck", false).apply();// do not check again
         }
 
-        if (sSharedPreferences.getBoolean("RYYHaskamaNotShown", true)) {
-            if (sSharedPreferences.getBoolean("isSetup", false)) {// so.. this is confusing because we do not want to show this dialog to new users, however, new users are not setup yet, so instead we check for if they are setup...
-                new MaterialAlertDialogBuilder(this)
-                        .setTitle(R.string.new_haskama)
-                        .setMessage(R.string.the_team_behind_zemaneh_yosef_is_proud_to_announce_that_we_have_recently_received_a_new_haskama_from_the_rishon_l_tzion_harav_yitzhak_yosef_check_it_out)
-                        .setPositiveButton(R.string.haskama_by_rabbi_yitzhak_yosef, (dialog, which) -> startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://royzmanim.com/assets/haskamah-rishon-letzion.pdf"))))
-                        .setNegativeButton(R.string.dismiss, (dialog, which) -> dialog.dismiss())
-                        .setCancelable(false)
-                        .show();
-            }
-            sSharedPreferences.edit().putBoolean("RYYHaskamaNotShown", false).apply();// do not check again
-        }
-
         sJewishDateInfo.setLocalDate(LocalDate.now());
         sJewishDateInfo.resetLocale(this);
         sJewishDateInfo.getJewishCalendar().setInIsrael(sSharedPreferences.getBoolean("inIsrael", false));
         initSetupResult();
-        if (ChaiTablesWebJava.checkIfFileDoesNotExist(getExternalFilesDir(null), sCurrentLocationName, sJewishDateInfo.getJewishCalendar().getJewishYear())
-                && sSharedPreferences.getBoolean("UseTable" + sCurrentLocationName, true)
-                && !sSharedPreferences.getBoolean("isSetup", false)
+        if (!sSharedPreferences.getBoolean("isSetup", false)
                 && savedInstanceState == null) {// it should only run if the user has not set up the app
             sSetupLauncher.launch(new Intent(this, WelcomeScreenActivity.class));
             initZmanimNotificationDefaults();
@@ -303,9 +288,7 @@ public class MainFragmentManagerActivity extends AppCompatActivity {
                         }
                     } else if (position == 1) {// Zmanim
                         materialToolbar.setTitle(getString(R.string.app_name));
-                        if (Utils.isLocaleHebrew(MainFragmentManagerActivity.this)) {
-                            materialToolbar.setSubtitle("");
-                        }
+                        materialToolbar.setSubtitle("");// the title is the app's name already
                     } else {// Siddur
                         materialToolbar.setTitle(getString(R.string.show_siddur));
                         materialToolbar.setSubtitle(getString(R.string.short_app_name));

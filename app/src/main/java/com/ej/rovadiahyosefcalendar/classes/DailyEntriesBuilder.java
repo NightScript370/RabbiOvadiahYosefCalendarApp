@@ -45,7 +45,8 @@ import com.kosherjava.zmanim.hebrewcalendar.JewishCalendar;
 import com.kosherjava.zmanim.hebrewcalendar.TefilaRules;
 import com.kosherjava.zmanim.util.ZmanimFormatter;
 
-import org.shredzone.commons.suncalc.MoonTimes;
+import com.ej.rovadiahyosefcalendar.classes.royzmanim.MoonCalc;
+import com.kosherjava.zmanim.util.GeoLocation;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -138,28 +139,27 @@ public class DailyEntriesBuilder {
         String birchatLevana = sJewishDateInfo.getBirchatLevana(ZoneId.of(sCurrentTimeZoneID));
         if (!birchatLevana.isEmpty()) {
             zmanim.add(new ZmanListEntry(birchatLevana, BIRCHAT_HALEVANA));
-            MoonTimes moonTimes = MoonTimes.compute()
-                    .on(sCurrentDateShown)
-                    .at(sLatitude, sLongitude)
-                    .timezone(sCurrentTimeZoneID == null ? TimeZone.getDefault().getID() : sCurrentTimeZoneID)
-                    .midnight()
-                    .oneDay() // since we want to only show the moon times for the current day, set it to one day with this call. In V2 the default was one day, but in V3 the default is fullCycle (i.e. 365 days).
-                    .execute();
-            if (moonTimes.isAlwaysUp()) {
+            // the lit part of the Moon rising / setting (ROYZmanim refraction and Sweer's dip; MoonCalc), over the day shown
+            ZoneId moonZone = ZoneId.of(sCurrentTimeZoneID == null ? TimeZone.getDefault().getID() : sCurrentTimeZoneID);
+            Instant moonDayStart = sCurrentDateShown.atStartOfDay(moonZone).toInstant();
+            MoonCalc.Window moonTimes = MoonCalc.DEFAULT.riseSetWithin(
+                    new GeoLocation("", sLatitude, sLongitude, Math.max(0, sElevation), moonZone),
+                    moonDayStart, sCurrentDateShown.plusDays(1).atStartOfDay(moonZone).toInstant());
+            if (moonTimes.alwaysUp) {
                 zmanim.add(new ZmanListEntry(context.getString(R.string.the_moon_is_up_all_night), MOON_STATUS));
-            } else if (moonTimes.isAlwaysDown()) {
+            } else if (moonTimes.alwaysDown) {
                 zmanim.add(new ZmanListEntry(context.getString(R.string.there_is_no_moon_tonight), MOON_STATUS));
             } else {
                 DateTimeFormatter moonFormat = DateTimeFormatter.ofPattern((Utils.isLocaleHebrew(context) ? "H:mm" : "h:mm a"));
                 String moonRiseSet = "";
-                if (moonTimes.getRise() != null) {
-                    moonRiseSet += context.getString(R.string.moonrise) + moonTimes.getRise().format(moonFormat);
+                if (moonTimes.rise != null) {
+                    moonRiseSet += context.getString(R.string.moonrise) + moonTimes.rise.atZone(moonZone).format(moonFormat);
                 }
-                if (moonTimes.getSet() != null) {
+                if (moonTimes.set != null) {
                     if (!moonRiseSet.isEmpty()) {
                         moonRiseSet += " - ";
                     }
-                    moonRiseSet += context.getString(R.string.moonset) + moonTimes.getSet().format(moonFormat);
+                    moonRiseSet += context.getString(R.string.moonset) + moonTimes.set.atZone(moonZone).format(moonFormat);
                 }
                 if (!moonRiseSet.isEmpty()) {
                     zmanim.add(new ZmanListEntry(moonRiseSet, MOON_STATUS));

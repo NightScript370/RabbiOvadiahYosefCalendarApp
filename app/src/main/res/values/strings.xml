@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Rabbi Ovadia Yosef Calendar</string>
+    <string name="app_name" translatable="false">הנדסי הזמן</string>
     <string name="locale">English</string>
     <string name="ok">OK</string>
     <string name="zipcode">Zipcode</string>
@@ -28,7 +28,7 @@
     </string>
     <string name="settings">Settings</string>
 
-    <string name="helper_text">Welcome to the Rabbi Ovadia Yosef Calendar app (also known as Zemaneh Yosef), this app was made to help you find out the most accurate Zemanim of the day according to Rabbi Ovadiah Yosef ZT\"L for your own city! Please follow the "Get Started" process of the app to set it up and here are some things to keep in mind:
+    <string name="helper_text">Welcome to Handasi HaZeman, this app was made to help you find out the most accurate Zemanim of the day according to Rabbi Ovadiah Yosef ZT\"L for your own city! Please follow the "Get Started" process of the app to set it up and here are some things to keep in mind:
 
  \n\n1.) You should ideally choose your city and download the visible sunrise tables through the simple setup. This table contains the most accurate times for VISIBLE sunrise, and this is the algorithm that the Ohr HaChaim calendar uses in Israel as the Yalkut Yosef writes (Yalkut Yosef Tefila 1, page 48). However, these tables only go on for 2 years into the future and will need to be updated bi-yearly. If you do not want to use these tables, you can choose to skip the setup, and the app will instead use the regular NOAA algorithm for sunrise (without elevation included as it is similar enough).
 
@@ -280,7 +280,7 @@
     <string name="by_rav_elbaz">Haskama by Rabbi Elbaz</string>
     <string name="haskamot_message">Choose which haskama you would like to view below.</string>
     <string name="by_rav_dahan">Haskama by Rabbi Dahan</string>
-    <string name="short_app_name">זמני יוסף</string>
+    <string name="short_app_name">הנדסי הזמן</string>
     <string name="selichot">סליחות</string>
     <string name="purim_disclaimer">Purim prayers will show on the 14th (yesterday)</string>
     <string name="title_activity_netz">Netz Countdown</string>
@@ -434,8 +434,6 @@
     <string name="burn_your_ametz_today">Burn your Ḥametz today</string>
     <string name="daily_nasi">"Daily Nasi: "</string>
     <string name="haskama_by_rabbi_yitzhak_yosef">Haskama by Rabbi Yitzhak Yosef</string>
-    <string name="new_haskama">New Haskama!</string>
-    <string name="the_team_behind_zemaneh_yosef_is_proud_to_announce_that_we_have_recently_received_a_new_haskama_from_the_rishon_l_tzion_harav_yitzhak_yosef_check_it_out">The team behind Zemaneh Yosef is proud to announce that we have recently received a new haskama from the Rishon L\'Tzion HaRav Yitzhak Yosef! Check it out!</string>
     <string name="omer_dialog">Every night during the Omer we say a blessing for doing a mitzvah and then say the count which leads us from Passover to Shavuot, from the barley harvest to the wheat harvest and, ultimately, to the first offering on Shavuot itself of wheat from the new harvest, in the form of 12 loaves. During the time the Omer was counted, barley from each week would be brought into the Temple and waved as an offering, really as a prayer that the harvest would come in successfully.\n\nEach day between the beginning of Passover and Shavuot gets counted, 49 days in all, 7 weeks of seven days. That makes the Omer period a miniature version of the Shmitah and Yovel (Jubilee) cycle of 7 cycles of seven years.\n\nThe Omer count is made starting the evening of each day – when the count happens at night the blessing is said and when the count happens during the daytime the blessing is not said. After the blessing the day is counted by absolute number and by its number within each week, i.e., “Today is the thirty-third day of the Omer, which is four weeks and five days” – that’s Lag Ba’omer (lamed plus gimel, ל + ג = 33).\n\nThe biggest challenge of counting the Omer is that there are some poskim (Baha\"g) that hold that it is one long mitzvah lasting 49 days, while others (Rambam) hold that each day is a separate mitzvah. Even though the Shulchan Aruch holds that each day is a separate mitzvah, the practice is if you go one whole night and day without counting you no longer say the blessing because of Safek Berachot LeHakel.</string>
     <string name="menorah">Menorah</string>
     <string name="sefirat_haomer">ספירת העומר</string>
@@ -474,7 +472,8 @@
     <string name="ideal">Ideal:</string>
     <string name="earliest">Earliest:</string>
     <string name="latest">Latest:</string>
-    <string name="zemaneh_yosef">Zemaneh Yosef</string>
+    <string name="zemaneh_yosef">Handasi HaZeman</string>
+    <string name="handasi_hazeman_app_name" translatable="false">הנדסי הזמן</string>
    <string name="book">Book</string>
     <string name="sensor_accuracy_is_low">Sensor accuracy is low.</string>
     <string name="sensor_accuracy_is_low_please_move_the_device_in_a_figure_eight_movement_to_increase_the_accuracy">Sensor accuracy is low. Please move the device in a figure eight movement to increase the accuracy.</string>
@@ -501,4 +500,8 @@
  <string name="av_desc">מִשֶּׁנִּכְנַס אָב, מְמַעֲטִין בְּשִׂמְחָה\nWhen [the month of] Av begins, one diminishes rejoicing.\nMishna Ta\'anit 4:6\n\nThe month of Av transitions from its 9th day to its 15th - the contrast between the saddest and happiest, separated only by 6 days (maybe even just 5).\n\nThe Midrashim explain that due to the Jews \"crying for no reason\" on the 1st תשעה באב, God will provide reasons of mourning for years to come. Indeed, this list below includes only events listed in the Mishna, but the full list that extends to our day would be too long (and too painful):\n\n* The Jewish nation wept over entering the land of Israel, when the spies came back with the negative testimony. God decreed that the generation will die in the desert throughout its 40-year wandering.\n* Both Temples were destroyed, by the Babylonians and Romans respectively. For the first Temple specifically, the burning extended into the 10th.\n* The Bar Kochba revolt against the Romans in 133 CE ended in defeat: Betar, an important Jewish stronghold during the Bar-Kochba revolt fell to the Romans, leaving its Jewish residents butchered. One year afterward, the Romans plowed over Jerusalem, destroying hopes of its rebuilding [for that generation].</string>
  <string name="elul_desc">After 40 days of pleading for the Jewish nation to be forgiven, Hashem commands Moshe to return to Har Sinai to receive the second tablets. This is the mindset of the month of Elul - the season to be aware of all the chances God gave us throughout the year and prepare for mercy.\n\nThis iconography, by definition, differs between the Sephardic and Ashkenazi communities. Our custom is to recite the סליחות services, starting from after ראש חודש. The iconography by Ashkenazim utilizes the שופר (usually reserved for ראש השנה) throughout the entire month (except the eve of ראש השנה). There is overlap between the two; a minority of Sephardic congregations blow the שופר during the recital of the 13 attributes, whereas Ashkenazim eventually adopt the custom of סליחות at the end of the month.\n\nThe 25th of the month is significant for two historical reasons:\n\n* Assuming the world was *not* created in Nisan, ראש השנה is called as such because it was the day man was created. Since that occurred on the 6th day of creation, subtracting 6 days falls on this day, when God started to give each item of the world its form.\n* It\'s the day Neḥemiah finished rebuilding the walls of Jerusalem after its original destruction.</string>
  <string name="other_settings">Other Settings</string>
+    <string name="use_refraction_data">Weather, terrain and haze</string>
+    <string name="use_refraction_data_summary">Compute sunrise and sunset through the actual air of the day (Open-Meteo and the ROYZmanim refraction server), the visible sunrise over the terrain, and the haze. Weather data by Open-Meteo.com.</string>
+    <string name="use_haze_tzet">Haze in nightfall</string>
+    <string name="use_haze_tzet_summary">Move nightfall by degrees by the haze of the evening (later on hazy evenings, earlier on clear ones), at most 15 minutes</string>
 </resources>

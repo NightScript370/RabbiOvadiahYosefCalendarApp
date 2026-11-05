@@ -22,7 +22,6 @@
             android:minHeight="?attr/actionBarSize"
             app:title="@string/app_name"
             app:titleCentered="true"
-            app:subtitle="@string/short_app_name"
             app:subtitleCentered="true"
             app:menu="@menu/menu_elevation_setup" />
 

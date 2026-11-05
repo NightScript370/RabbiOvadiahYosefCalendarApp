@@ -1,5 +1,6 @@
 package com.ej.rovadiahyosefcalendar.notifications;
 
+import com.ej.rovadiahyosefcalendar.classes.handasi.HandasiHazemanCalendar;
 import static android.content.Context.ALARM_SERVICE;
 import static android.content.Context.MODE_PRIVATE;
 import static com.ej.rovadiahyosefcalendar.activities.MainFragmentManagerActivity.SHARED_PREF;
@@ -321,7 +322,7 @@ public class OmerNotifications extends BroadcastReceiver implements Consumer<Loc
     }
 
     private ROZmanimCalendar getROZmanimCalendar() {
-        return new ROZmanimCalendar(mLocationResolver.getRealtimeNotificationData(this, false));// we will continue in the accept method
+        return new HandasiHazemanCalendar(mLocationResolver.getRealtimeNotificationData(this, false));// we will continue in the accept method
     }
 
     private void updateAlarm(ROZmanimCalendar c) {
@@ -361,7 +362,7 @@ public class OmerNotifications extends BroadcastReceiver implements Consumer<Loc
             }
             String locationName = mLocationResolver.getLocationAsName(location.getLatitude(), location.getLongitude());
             mLocationResolver.resolveElevation(() -> {
-                init(new JewishDateInfo(mSharedPreferences.getBoolean("inIsrael", false)), new ROZmanimCalendar(new GeoLocation(
+                init(new JewishDateInfo(mSharedPreferences.getBoolean("inIsrael", false)), new HandasiHazemanCalendar(new GeoLocation(
                         locationName,
                         location.getLatitude(),
                         location.getLongitude(),
@@ -373,7 +374,7 @@ public class OmerNotifications extends BroadcastReceiver implements Consumer<Loc
             if (BuildConfig.DEBUG) {
                 mSharedPreferences.edit().putString("debugNotifs", mSharedPreferences.getString("debugNotifs", "") + "location object in OmerNotifications WAS null" + "\n\n").apply();
             }
-            init(new JewishDateInfo(mSharedPreferences.getBoolean("inIsrael", false)), new ROZmanimCalendar(mLocationResolver.getLastKnownGeoLocation()));
+            init(new JewishDateInfo(mSharedPreferences.getBoolean("inIsrael", false)), new HandasiHazemanCalendar(mLocationResolver.getLastKnownGeoLocation()));
             finishBroadcast();
         }
     }

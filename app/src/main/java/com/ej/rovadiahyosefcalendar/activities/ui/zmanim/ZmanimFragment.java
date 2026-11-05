@@ -1,5 +1,6 @@
 package com.ej.rovadiahyosefcalendar.activities.ui.zmanim;
 
+import com.ej.rovadiahyosefcalendar.classes.handasi.HandasiHazemanCalendar;
 import static android.Manifest.permission.ACCESS_BACKGROUND_LOCATION;
 import static android.Manifest.permission.ACCESS_COARSE_LOCATION;
 import static android.Manifest.permission.ACCESS_FINE_LOCATION;
@@ -92,7 +93,6 @@ import com.ej.rovadiahyosefcalendar.activities.NetzActivity;
 import com.ej.rovadiahyosefcalendar.activities.SettingsActivity;
 import com.ej.rovadiahyosefcalendar.activities.WelcomeScreenActivity;
 import com.ej.rovadiahyosefcalendar.activities.ui.DailySummaryController;
-import com.ej.rovadiahyosefcalendar.classes.ChaiTablesWebJava;
 import com.ej.rovadiahyosefcalendar.classes.DailyEntriesBuilder;
 import com.ej.rovadiahyosefcalendar.classes.DummyZmanAdapter;
 import com.ej.rovadiahyosefcalendar.classes.HebrewDayMonthYearPickerDialog;
@@ -140,11 +140,15 @@ import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import com.ej.rovadiahyosefcalendar.classes.royzmanim.RefractionRepository;
+
+import kotlin.Unit;
+import kotlin.jvm.functions.Function2;
+
 public class ZmanimFragment extends Fragment implements Consumer<Location> {
 
     public static boolean sShabbatMode;
     private int mCurrentPosition;//current position in the list of zmanim to return to
-    private boolean mUpdateTablesDialogShown;
 
     //android classes
     private FragmentZmanimBinding binding;
@@ -153,6 +157,25 @@ public class ZmanimFragment extends Fragment implements Consumer<Location> {
     private Context mContext;
     private FragmentActivity mActivity;
     private Handler mHandler = null;
+    /** Better weather / terrain / haze data (or a visible sunrise) for the place shown arrived: rebuild and redraw. */
+    private final Function2<Double, Double, Unit> mRefractionListener = (lat, lon) -> {
+        Handler handler = mHandler;
+        if (handler != null) {
+            handler.post(() -> {
+                if (binding == null || Math.abs(lat - sLatitude) > 1e-5 || Math.abs(lon - sLongitude) > 1e-5) {
+                    return;
+                }
+                instantiateZmanimCalendar();
+                setNextUpcomingZman();
+                if (sSharedPreferences.getBoolean("weeklyMode", false)) {
+                    updateWeeklyZmanim();
+                } else {
+                    updateDailyZmanim();
+                }
+            });
+        }
+        return Unit.INSTANCE;
+    };
     private Runnable mZmanimUpdater;
     private Runnable mNextZmanUpdater;
 
@@ -219,6 +242,7 @@ public class ZmanimFragment extends Fragment implements Consumer<Location> {
         mLayout = binding.mainLayout;
         mIsTwoPane = getResources().getBoolean(R.bool.is_two_pane);
         mHandler = new Handler(mContext.getMainLooper());
+        RefractionRepository.addListener(mRefractionListener);
         initMenu();
         setupShabbatModeBanner();
 
@@ -369,25 +393,7 @@ public class ZmanimFragment extends Fragment implements Consumer<Location> {
      * @param codeToRunAfterwards the code to run after the chaitable times are updated. This should be done on the main UI thread if it the code will affect the UI.
      */
     private void updateChaitableTimesFromLatLong(Runnable codeToRunAfterwards) {//TODO
-//        new Thread(() -> {
-//            if (sROZmanimCalendar.getHaNetz() == null) {// if visible sunrise for this location is null, try to update it
-//                JewishDate jDate = new JewishDate();
-//                ChaiTablesWebJava scraper = new ChaiTablesWebJava(new GeoLocation("", sLatitude, sLongitude, TimeZone.getTimeZone(sCurrentTimeZoneID)), jDate);
-//
-//                try {
-//                    ChaiTablesWebJava.ChaiTablesResult[] result = scraper.getChaitableTimesWithLatLong();
-//                    int jewishYear = jDate.getJewishYear();
-//                    for (ChaiTablesWebJava.ChaiTablesResult r : result) {
-//                        ChaiTablesWebJava.saveResultsToFile(r, mContext.getExternalFilesDir(null), sCurrentLocationName, jewishYear);
-//                        jewishYear++;
-//                    }
-//                    sSharedPreferences.edit().putString("chaitablesLink" + sCurrentLocationName, result[0].url()).apply(); // save the link for this location to automatically download again next time
-//                } catch (IOException e) {
-//                    e.printStackTrace();
-//                }
-//            }
             mActivity.runOnUiThread(codeToRunAfterwards);
-//        }).start();
     }
 
     private void setupButtons() {
@@ -420,7 +426,6 @@ public class ZmanimFragment extends Fragment implements Consumer<Location> {
                     updateDailyZmanim();
                 }
                 mCalendarButton.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, Utils.getCurrentCalendarDrawable(sSettingsPreferences, sCurrentDateShown));
-                seeIfTablesNeedToBeUpdated(true);
             }
         });
 
@@ -458,7 +463,6 @@ public class ZmanimFragment extends Fragment implements Consumer<Location> {
                             updateDailyZmanim();
                         }
                         mCalendarButton.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, Utils.getCurrentCalendarDrawable(sSettingsPreferences, sCurrentDateShown));
-                        seeIfTablesNeedToBeUpdated(true);
                     });
                     DatePickerDialog.OnDateSetListener onDateSetListener = (view, year, month, day) -> {
                         LocalDate userChosenDate = LocalDate.of(year, month, day);
@@ -471,7 +475,6 @@ public class ZmanimFragment extends Fragment implements Consumer<Location> {
                             updateDailyZmanim();
                         }
                         mCalendarButton.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, Utils.getCurrentCalendarDrawable(sSettingsPreferences, sCurrentDateShown));
-                        seeIfTablesNeedToBeUpdated(true);
                     };
                     materialDatePicker.addOnNegativeButtonClickListener(selection -> {
                         HebrewDayMonthYearPickerDialog hdmypd = new HebrewDayMonthYearPickerDialog(materialDatePicker, mActivity.getSupportFragmentManager(), sJewishDateInfo.getJewishCalendar());
@@ -489,65 +492,6 @@ public class ZmanimFragment extends Fragment implements Consumer<Location> {
 
             mCalendarButton.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, Utils.getCurrentCalendarDrawable(sSettingsPreferences, sCurrentDateShown));
         }
-    }
-
-    /**
-     * This method will automatically update the tables if the user has set up the app before for the current location.
-     *
-     * @param fromButton if the method is called from the buttons, it will not ask more than once if the user wants to update the tables.
-     */
-    private void seeIfTablesNeedToBeUpdated(boolean fromButton) {
-        if (!(sSharedPreferences.getBoolean("isSetup", false) //only check after the app has been set up before
-                && sSharedPreferences.getBoolean("UseTable" + sCurrentLocationName, false))) //and only if the tables are being used
-			return;
-
-        if (!ChaiTablesWebJava.checkIfFileDoesNotExist(mActivity.getExternalFilesDir(null), sCurrentLocationName, sJewishDateInfo.getJewishCalendar().getJewishYear()))
-			return;
-
-        if (mUpdateTablesDialogShown)
-			return;
-
-		MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(mContext);
-		builder.setTitle(R.string.update_tables);
-		builder.setMessage(R.string.the_visible_sunrise_tables_for_the_current_location_and_year_need_to_be_updated_do_you_want_to_update_the_tables_now);
-		builder.setPositiveButton(R.string.yes, (dialog, which) -> {
-			String chaitablesURL = sSharedPreferences.getString("chaitablesLink" + sCurrentLocationName, "");
-			if (!chaitablesURL.isEmpty()) {//it should not be empty if the user has set up the app, but it is good to check
-				String hebrewYear = String.valueOf(sJewishDateInfo.getJewishCalendar().getJewishYear());
-				Pattern pattern = Pattern.compile("&cgi_yrheb=\\d{4}");
-				Matcher matcher = pattern.matcher(chaitablesURL);
-				if (matcher.find()) {
-					chaitablesURL = chaitablesURL.replace(matcher.group(), "&cgi_yrheb=" + hebrewYear);//replace the year in the URL with the current year
-				}
-				ChaiTablesWebJava scraper = new ChaiTablesWebJava(sROZmanimCalendar.getGeoLocation(), sJewishDateInfo.getJewishCalendar());
-				String finalChaitablesURL = chaitablesURL;
-				Thread thread = new Thread(() -> {
-					try {
-						ChaiTablesWebJava.ChaiTablesResult[] results = scraper.formatInterfacer(finalChaitablesURL); // will download 2 more years
-						int jewishYear = sJewishDateInfo.getJewishCalendar().getJewishYear();
-						for (ChaiTablesWebJava.ChaiTablesResult r : results) {
-							ChaiTablesWebJava.saveResultsToFile(r, mContext.getExternalFilesDir(null), sCurrentLocationName, jewishYear);
-							jewishYear++;
-						}
-						mActivity.runOnUiThread(() -> {
-							if (sSharedPreferences.getBoolean("weeklyMode", false)) {
-								updateWeeklyZmanim();
-							} else {
-								updateDailyZmanim();
-							}
-						});
-					} catch (Exception e) {
-						e.printStackTrace();
-					}
-				});
-				thread.start();
-			}
-		});
-		builder.setNegativeButton(R.string.no, (dialog, which) -> dialog.dismiss());
-		builder.show();
-		if (fromButton) {
-			mUpdateTablesDialogShown = true;
-		}
     }
 
     private void setupDailyViews() {
@@ -833,13 +777,12 @@ public class ZmanimFragment extends Fragment implements Consumer<Location> {
     }
 
     private void instantiateZmanimCalendar() {
-        sROZmanimCalendar = new ROZmanimCalendar(new GeoLocation(
+        sROZmanimCalendar = new HandasiHazemanCalendar(new GeoLocation(
                 sCurrentLocationName,
                 sLatitude,
                 sLongitude,
                 sElevation,
                 ZoneId.of(sCurrentTimeZoneID)));
-        sROZmanimCalendar.setExternalFilesDir(mActivity.getExternalFilesDir(null));
         String candles = sSettingsPreferences.getString("CandleLightingOffset", "20");
         sROZmanimCalendar.setCandleLightingOffset(Utils.parseDoubleOrDefault(candles, 20));
         String shabbat = sSettingsPreferences.getString("EndOfShabbatOffset", sSharedPreferences.getBoolean("inIsrael", false) ? "30" : "40");
@@ -848,6 +791,8 @@ public class ZmanimFragment extends Fragment implements Consumer<Location> {
             sROZmanimCalendar.setAteretTorahSunsetOffset(30);
         }
         sROZmanimCalendar.setAmudehHoraah(sSettingsPreferences.getBoolean("LuachAmudeiHoraah", false));
+        // the place's weather, terrain horizon and haze, fetched in the background when stale (the list redraws when they land)
+        RefractionRepository.ensureFresh(sLatitude, sLongitude);
     }
 
     private void askForRealTimeNotificationPermissions() {
@@ -889,39 +834,26 @@ public class ZmanimFragment extends Fragment implements Consumer<Location> {
                     mPostNotificationsLauncher.launch(Manifest.permission.POST_NOTIFICATIONS);
                     waitingForNotificationPermission = true;
                 } else {
-                    if (!sSharedPreferences.getBoolean("hasShownVSNotification", false)) {
-                        Utils.showVisibleSunriseNotification(mContext);
-                        sSharedPreferences.edit().putBoolean("hasShownVSNotification", true).apply();
-                    }
                 }
             }
 
             if (!sSharedPreferences.getBoolean("neverAskBatteryOptimization", false)) {
                 PowerManager powerManager = (PowerManager) mContext.getSystemService(POWER_SERVICE);
-                if (!powerManager.isIgnoringBatteryOptimizations(mContext.getPackageName())) {
-                    MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(mContext)
-                            .setTitle(R.string.battery_optimization_is_enabled)
-                            .setMessage(R.string.the_current_battery_settings_for_the_app_is_trying_to_save_battery_this_may_cause_notifications_to_be_sent_at_a_later_time_would_you_like_to_change_this_setting)
-                            .setCancelable(false)
-                            .setPositiveButton(mContext.getString(R.string.yes), (dialog, which) -> {
-                                try {
-                                    mContext.startActivity(new Intent("android.settings.APP_BATTERY_USAGE")
-                                            .putExtra("android.intent.extra.PACKAGE_NAME", mContext.getPackageName())
-                                            .setData(Uri.parse("package:" + mContext.getPackageName())));
-                                } catch (Exception e) {
-                                    // Fallback to the main App Info page if the specific battery page fails
-                                    Intent fallback = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
-                                    fallback.setData(Uri.parse("package:" + mContext.getPackageName()));
-                                    mContext.startActivity(fallback);
-                                }
-                            })
-                            .setNegativeButton(mContext.getString(R.string.no), (dialog, which) -> dialog.dismiss())
-                            .setNeutralButton(mContext.getString(R.string.do_not_ask_me_again), (dialog, which) -> {
-                                sSharedPreferences.edit().putBoolean("neverAskBatteryOptimization", true).apply();
-                                dialog.dismiss();
-                            });
-                    if (!mActivity.isFinishing()) {
-                        builder.show();
+                if (!powerManager.isIgnoringBatteryOptimizations(mContext.getPackageName()) && !mActivity.isFinishing()) {
+                    // The system's own one-tap "Let app always run in background?" prompt. Asked once; a user
+                    // who declines can still change it under the app's battery settings.
+                    sSharedPreferences.edit().putBoolean("neverAskBatteryOptimization", true).apply();
+                    Uri pkg = Uri.parse("package:" + mContext.getPackageName());
+                    try {
+                        mContext.startActivity(new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, pkg));
+                    } catch (Exception e) {
+                        try {
+                            mContext.startActivity(new Intent("android.settings.APP_BATTERY_USAGE")
+                                    .putExtra("android.intent.extra.PACKAGE_NAME", mContext.getPackageName())
+                                    .setData(pkg));
+                        } catch (Exception e2) {
+                            mContext.startActivity(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, pkg));
+                        }
                     }
                 }
             }
@@ -1061,11 +993,8 @@ public class ZmanimFragment extends Fragment implements Consumer<Location> {
         if (materialToolbar == null) {
             return;
         }
-        if (Utils.isLocaleHebrew(mContext)) {
-            materialToolbar.setSubtitle("");
-        } else {
-            materialToolbar.setTitle(mContext.getString(R.string.app_name));
-        }
+        materialToolbar.setTitle(mContext.getString(R.string.app_name));
+        materialToolbar.setSubtitle("");// the title is the app's name already
         materialToolbar.getMenu().clear();
         materialToolbar.inflateMenu(R.menu.menu_main);
         materialToolbar.setOnMenuItemClickListener(item -> {
@@ -1538,7 +1467,6 @@ public class ZmanimFragment extends Fragment implements Consumer<Location> {
                         () -> sElevation = Utils.parseDoubleOrDefault(sSharedPreferences.getString("elevation" + sCurrentLocationName, "0"), 0),
                         codeToRunOnMainThread));
                 thread.start();
-                seeIfTablesNeedToBeUpdated(false);
             } else {// use elevation that was set before
                 sElevation = Utils.parseDoubleOrDefault(sSharedPreferences.getString("elevation" + sCurrentLocationName, "0"), 0);
                 mActivity.runOnUiThread(codeToRunOnMainThread);
@@ -2024,6 +1952,7 @@ public class ZmanimFragment extends Fragment implements Consumer<Location> {
             binding.getRoot().getViewTreeObserver().removeOnGlobalFocusChangeListener(mFocusFirstZmanOnEntry);
         }
         binding = null;
+        RefractionRepository.removeListener(mRefractionListener);
         mDailySummary = null;
         sSharedPreferences.unregisterOnSharedPreferenceChangeListener(sSharedPrefListener);
         if (mLocationTimeoutRunnable != null) {

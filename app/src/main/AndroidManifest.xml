@@ -48,11 +48,12 @@
     </queries>
 
     <application
+        android:name=".ZmanimApplication"
         android:allowBackup="true"
         android:banner="@mipmap/ic_banner"
         android:enableOnBackInvokedCallback="true"
         android:icon="@mipmap/ic_launcher"
-        android:label="@string/zemaneh_yosef"
+        android:label="@string/handasi_hazeman_app_name"
         android:largeHeap="true"
         android:localeConfig="@xml/locales_config"
         android:roundIcon="@mipmap/ic_launcher_round"
@@ -126,12 +127,6 @@
             android:label="@string/molad_calculator" />
         <activity
             android:name=".activities.ZmanimLanguageActivity"
-            android:exported="true" />
-        <activity
-            android:name=".activities.AdvancedSetupActivity"
-            android:exported="true" />
-        <activity
-            android:name=".activities.SetupChaiTablesActivity"
             android:exported="true" />
         <activity android:name=".activities.InIsraelActivity" />
         <activity

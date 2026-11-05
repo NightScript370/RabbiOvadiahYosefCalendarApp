@@ -1,14 +1,18 @@
 package com.ej.rovadiahyosefcalendar.classes;
 
+import com.ej.rovadiahyosefcalendar.classes.royzmanim.AtmosphereSpec;
+import com.ej.rovadiahyosefcalendar.classes.royzmanim.Limb;
+import com.ej.rovadiahyosefcalendar.classes.royzmanim.ROYSPACalculator;
+import com.ej.rovadiahyosefcalendar.classes.royzmanim.RefractionRepository;
+import com.ej.rovadiahyosefcalendar.classes.royzmanim.RefractionSupport;
+
+import com.ej.rovadiahyosefcalendar.classes.royzmanim.StarNightfall;
+import com.ej.rovadiahyosefcalendar.classes.royzmanim.VisibleOptions;
 import com.kosherjava.zmanim.AstronomicalCalendar;
 import com.kosherjava.zmanim.ZmanimCalendar;
 import com.kosherjava.zmanim.hebrewcalendar.JewishCalendar;
 import com.kosherjava.zmanim.util.GeoLocation;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.ObjectInputStream;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -17,7 +21,6 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 /**
@@ -30,9 +33,8 @@ import java.util.List;
  * <br><br>
  * Thankfully, KosherJava's ZmanimCalendar class has all the zmanim and tools that are needed to calculate the zmanim in the
  * "Luach Hamaor, Ohr HaChaim" except for the zmanim that are based on visible sunrise. Visible sunrise is the exact time that the sun is visible
- * above the horizon. This time needs to take into account the horizon around the city. The {@link #getHaNetz()} method gets the visible sunrise
- * from a file that is gotten by the {@link ChaiTablesWebJava} class. The {@link ChaiTablesWebJava} class downloads the sunrise times from the ChaiTables website
- * and creates a file that contains the sunrise times for the current location.
+ * above the horizon. This time needs to take into account the horizon around the city. The {@link #getHaNetz()} method computes the
+ * visible sunrise over the terrain horizon of the place from the ROYZmanim refraction server.
  * <br><br>
  * All the other zmanim that were not included in KosherJava's zmanim calculator are calculated in this class.
  * <br><br>
@@ -124,15 +126,26 @@ import java.util.List;
  * {@link #getTzeitLChumra()},
  * {@link #getTzeitShabbatAmudeiHoraah()},
  * {@link #getTzais72ZmanisAmudeiHoraahLkulah()}
- * <br>
+ * <br><br>
+ * Backported from the ROYZmanim website (ROYZmanim.js and its KosherJava 3.0 libraries):
+ * <ul>
+ * <li>The astronomical calculator is {@link ROYSPACalculator}: KosherJava's SPA with the website's corrections (34.48'
+ * refraction, Sweer's dip for the elevation, the WGS84 radius of curvature, VSOP87 / IAU 2000B / IAU 2006 / IERS Delta-T for
+ * the Sun's place) and, where data for the place are stored, sunrise and sunset ray traced through the day's actual air
+ * (Open-Meteo path profiles, the refraction server's profiles, monthly normals: {@link RefractionRepository}).</li>
+ * <li>{@link #getHaNetz()} is the visible sunrise over the refraction server's terrain horizon.</li>
+ * <li>With degrees ({@link #isUseAmudehHoraah()}), Alot Hashachar is never later than the Sun 8.5 degrees down (previous
+ * solar midnight where it never gets that low), and Misheyakir is its fraction of the time from dawn to sunrise.</li>
+ * <li>Tzet Shabbat by degrees falls back to 5.2 degrees (then solar midnight) where the Sun doesn't reach 7.165 degrees before
+ * solar midnight, and moves by the haze delay (nightfall by the stars at the evening's haze against the place's average:
+ * {@link StarNightfall}).</li>
+ * </ul>
  * Created by EJ on 9/13/2021.
  */
 public class ROZmanimCalendar extends ZmanimCalendar {
 
     private final JewishCalendar jewishCalendar;
     private static final long MINUTES_PER_HOUR = 60L;
-    public List<Instant> vSunriseDates = new ArrayList<>();
-    private File externalFilesDir;
 
     /**
      * Enable the calculations of the Amudeh Horaah calendar where applicable.
@@ -148,33 +161,72 @@ public class ROZmanimCalendar extends ZmanimCalendar {
      */
     private double ateretTorahSunsetOffset = 40;
 
+    /**
+     * The weather, terrain and haze data this calendar computes with (null = none: the calculator's default model), as stored
+     * by {@link RefractionRepository} for the place.
+     */
+    private RefractionRepository.RefractionData refractionData;
+
+    /** Set once the constructor has run (the superclass constructor calls setGeoLocation before the fields exist). */
+    private boolean constructed = false;
+
+    /** A calendar with the refraction data stored for the place (none until they have been loaded once). */
     public ROZmanimCalendar(GeoLocation location) {
+        this(location, RefractionSupport.dataFor(location));
+    }
+
+    /** A calendar with the given refraction data (null = the calculator's default model). */
+    public ROZmanimCalendar(GeoLocation location, RefractionRepository.RefractionData refractionData) {
         super(location);
         jewishCalendar = new JewishCalendar(getLocalDate());
         setUseElevation(true);
+        constructed = true;
+        setRefractionData(refractionData);
     }
 
-    @SuppressWarnings("unchecked")
-    private void loadVSunriseFile() {
-        if (getGeoLocation().getLocationName() != null && getGeoLocation().getLocationName().isEmpty()) {
-            return;
-        }
+    /**
+     * A new calendar of this class for a place, with the given data. Subclasses override it so that {@link #getCopy()} (and so
+     * every calculation done on another date) stays in the subclass.
+     */
+    protected ROZmanimCalendar newInstance(GeoLocation location, RefractionRepository.RefractionData refractionData) {
+        return new ROZmanimCalendar(location, refractionData);
+    }
 
-        File vsFile = ChaiTablesWebJava.getVisibleSunriseFile(externalFilesDir, getGeoLocation().getLocationName(), jewishCalendar.getJewishYear());
-        if (!vsFile.isFile()) {
-            return;
-        }
+    public RefractionRepository.RefractionData getRefractionData() {
+        return refractionData;
+    }
 
-        List<Long> vSunriseTimes = Collections.emptyList();
-        try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(vsFile))) {
-            vSunriseTimes = (List<Long>) ois.readObject();
-        } catch (IOException | ClassNotFoundException e) {
-            e.printStackTrace();
-        }
+    /** Use these refraction data (e.g. after a new download); the calculator is the one shared for the data and place. */
+    public void setRefractionData(RefractionRepository.RefractionData refractionData) {
+        this.refractionData = refractionData;
+        setAstronomicalCalculator(RefractionSupport.calculatorFor(refractionData, getGeoLocation()));
+    }
 
-        // Convert each seconds-since-midnight long into a Calendar
-        for (Long seconds : vSunriseTimes) {
-            vSunriseDates.add(Instant.ofEpochSecond(seconds));
+    @Override
+    public void setGeoLocation(GeoLocation geoLocation) {
+        super.setGeoLocation(geoLocation);
+        // the shared calculators are per latitude: swap rather than reconfigure one other calendars use
+        if (constructed) {
+            setAstronomicalCalculator(RefractionSupport.calculatorFor(refractionData, geoLocation));
+        }
+    }
+
+    /** The calculator, when it is the corrected one (it always is unless a caller set another). */
+    public ROYSPACalculator getROYCalculator() {
+        return getAstronomicalCalculator() instanceof ROYSPACalculator c ? c : null;
+    }
+
+    /**
+     * The air the current date's sunrise / sunset is traced through; null = none (the default 34.48' refraction).
+     */
+    public AtmosphereSpec getAtmosphereSpec(com.ej.rovadiahyosefcalendar.classes.royzmanim.SolarEvent event) {
+        if (refractionData == null || refractionData.getProvider() == null) {
+            return null;
+        }
+        try {
+            return refractionData.getProvider().airFor(getLocalDate(), event, getGeoLocation());
+        } catch (Exception e) {
+            return null;
         }
     }
 
@@ -208,7 +260,39 @@ public class ROZmanimCalendar extends ZmanimCalendar {
         if (!amudehHoraah) {
             return getZmanisBasedOffset(-1.2);
         }
-        return getAmudeiHoraahBeforeSunrise(16.04, 1);
+        // the equinox offset in seasonal time before sunrise, never later than the Sun at 8.5 degrees below the horizon (the
+        // longer of the two offsets); where the Sun never gets that low, the previous solar midnight
+        Instant floor = getSunriseOffsetByDegrees(GEOMETRIC_ZENITH + 8.5);
+        if (floor == null) {
+            return getPreviousSolarMidnight();
+        }
+        Instant seasonal = getAmudeiHoraahBeforeSunrise(16.04, 1);
+        if (seasonal == null) {
+            return floor;
+        }
+        return seasonal.isAfter(floor) ? floor : seasonal;
+    }
+
+    /** Solar midnight of the night before this date's morning. */
+    public Instant getPreviousSolarMidnight() {
+        ROZmanimCalendar yesterday = getCopy();
+        yesterday.setLocalDate(getLocalDate().minusDays(1));
+        return yesterday.getSolarMidnight();
+    }
+
+    /**
+     * Misheyakir as a fraction of the time from {@link #getAlotHashachar() dawn} to sunrise before sunrise (5/6 = 60 of 72
+     * minutes). The same as the zmaniyot offsets without degrees, and with them it follows dawn's 8.5 degree limit.
+     * @param fraction the part of the dawn-to-sunrise time before sunrise
+     */
+    public Instant getMisheyakir(double fraction) {
+        Instant alot = getAlotHashachar();
+        Instant sunrise = getSunriseBasedOnElevationSetting();
+        if (alot == null || sunrise == null) {
+            return null;
+        }
+        long nanos = (long) (Duration.between(alot, sunrise).toNanos() * fraction);
+        return sunrise.minusNanos(nanos);
     }
 
     /**
@@ -223,7 +307,7 @@ public class ROZmanimCalendar extends ZmanimCalendar {
         if (!amudehHoraah) {
             return getZmanisBasedOffset(-1.1);
         }
-        return getAmudeiHoraahBeforeSunrise(16.04, 11.0 / 12.0);// 11 / 12 == 66 / 72
+        return getMisheyakir(11.0 / 12.0);// 11 / 12 == 66 / 72
     }
 
     /**
@@ -237,23 +321,70 @@ public class ROZmanimCalendar extends ZmanimCalendar {
         if (!amudehHoraah) {
             return getZmanisBasedOffset(-1);
         }
-        return getAmudeiHoraahBeforeSunrise(16.04, 5.0 / 6.0);// 5 / 6 == 60 / 72
+        return getMisheyakir(5.0 / 6.0);// 5 / 6 == 60 / 72
     }
 
     /**
-     * This method returns the time for Visible Sunrise calculated by the Chai Tables website. This is the same calculation that is used in the
-     * Ohr HaChaim calendar. If the date is out of scope of the file which lasts for 1 jewish year, then the method will return null.
-     * @return the time for Visible Sunrise calculated by the Chai Tables website, otherwise null.
+     * The visible sunrise over the terrain horizon (see {@link #getTerrainHaNetz()}), or null where there is none.
+     * @return the visible sunrise, otherwise null.
      */
     public Instant getHaNetz() {
-        LocalDate date = getLocalDate();
-        ZoneId zone = getGeoLocation().getZoneId();
-        for (Instant vSunrise : vSunriseDates) {
-            if (vSunrise.atZone(zone).toLocalDate().equals(date)) {
-                return vSunrise;
-            }
+        return getTerrainHaNetz();
+    }
+
+    /**
+     * Whether the current date's sunrise is traced through weather data (a forecast, the refraction server's profiles or the
+     * monthly normals) rather than the default 34.48' refraction.
+     */
+    public boolean isSunriseWeatherBased() {
+        return getAtmosphereSpec(com.ej.rovadiahyosefcalendar.classes.royzmanim.SolarEvent.SUNRISE) != null;
+    }
+
+    /** Whether {@link #getHaNetz()} is the visible sunrise over the terrain horizon (a horizon set stored). */
+    public boolean isHaNetzFromTerrain() {
+        return getTerrainHaNetz() != null;
+    }
+
+    /**
+     * The visible sunrise over the refraction server's terrain horizon (any part of the disk), traced through the day's air;
+     * null without a horizon set, while it is still being computed with no neighbouring day to estimate from, or when the
+     * result is more than an hour from sunrise (a bad profile).
+     */
+    public Instant getTerrainHaNetz() {
+        return getTerrainSunrise(new VisibleOptions(), "");
+    }
+
+    /**
+     * The visible sunrise over the terrain horizon for a part of the disk, computed in the background on a cache miss.
+     * @param tag keeps a subclass's cache entries apart
+     */
+    protected Instant getTerrainSunrise(VisibleOptions options, String tag) {
+        if (refractionData == null || refractionData.getHorizon() == null) {
+            return null;
         }
-        return null;
+        kotlin.Pair<Double, Boolean> r = RefractionSupport.visibleSunrise(refractionData, getGeoLocation(), getLocalDate(), options, true, tag);
+        return RefractionSupport.checkedInstant(r.getFirst(), getSunriseBasedOnElevationSetting());
+    }
+
+    /**
+     * Sunrise with the whole disk above the horizon (Halacha Berura): over the terrain horizon when there is one, else the
+     * {@link #getHaNetz() visible} (or sea-level) sunrise moved by the solar diameter.
+     */
+    public Instant getSunriseFullDisk() {
+        Instant full = getTerrainSunrise(new VisibleOptions(24, 10.0, null, false, Limb.FULL, null), "");
+        if (full != null) {
+            return full;
+        }
+        Instant netz = getHaNetz();
+        if (netz == null) {
+            netz = getSeaLevelSunrise();
+        }
+        Instant seaLevel = getSeaLevelSunrise();
+        Instant diameter = getSunriseOffsetByDegrees(GEOMETRIC_ZENITH - getAstronomicalCalculator().getSolarRadius() + getAstronomicalCalculator().getRefraction());
+        if (netz == null || seaLevel == null || diameter == null) {
+            return null;
+        }
+        return netz.plus(Duration.between(seaLevel, diameter));
     }
 
     /**
@@ -470,6 +601,10 @@ public class ROZmanimCalendar extends ZmanimCalendar {
         if (!amudehHoraah) {
             return getTzais72ForceRegZmanis();
         }
+        // where the Sun never gets 8.5 degrees down, solar midnight
+        if (getSunsetOffsetByDegrees(GEOMETRIC_ZENITH + 8.5) == null) {
+            return getSolarMidnight();
+        }
         return getAmudeiHoraahAfterSunset(16.04, 1);
     }
 
@@ -547,25 +682,11 @@ public class ROZmanimCalendar extends ZmanimCalendar {
         return getTimeOffset(chatzotToday, Duration.between(chatzotToday, chatzotTomorrow).dividedBy(2));
     }
 
-    public void setExternalFilesDir(File externalFilesDir) {
-        this.externalFilesDir = externalFilesDir;
-        loadVSunriseFile();
-    }
-
     @Override
     public void setLocalDate(LocalDate localDate) {
-        int curYear = 0;
-        if (jewishCalendar != null) {
-            curYear = jewishCalendar.getJewishYear();
-        }
-
         super.setLocalDate(localDate);
         if (getLocalDate() != null && jewishCalendar != null) {
             jewishCalendar.setGregorianDate(getLocalDate());
-        }
-
-        if (this.externalFilesDir != null && curYear != 0 && curYear != jewishCalendar.getJewishYear()) {
-            loadVSunriseFile();
         }
     }
 
@@ -581,7 +702,7 @@ public class ROZmanimCalendar extends ZmanimCalendar {
      * explanation on top of the {@link AstronomicalCalendar} documentation.
      */
     public Instant getTzeitShabbatAmudeiHoraah() {
-        Instant tzait = getSunsetOffsetByDegrees(GEOMETRIC_ZENITH + 7.165);
+        Instant tzait = getDegreeTzetWithHaze(7.165);
         if (tzait != null) {
             Instant tzait20 = getTimeOffset(getSunsetBasedOnElevationSetting(), Duration.of(20, ChronoUnit.MINUTES));
             if (tzait20 != null && tzait20.isAfter(tzait)) { // if shabbat ends before 20 minutes after sunset, use 20 minutes
@@ -592,6 +713,73 @@ public class ROZmanimCalendar extends ZmanimCalendar {
             }
         }
         return tzait;
+    }
+
+    /**
+     * Tzet when the Sun is `degree` below the horizon, moved by the {@link #getHazeDelay(double) haze delay}. Where the Sun
+     * doesn't get that low before solar midnight: 5.2 degrees (from a higher degree), else solar midnight.
+     */
+    public Instant getDegreeTzetWithHaze(double degree) {
+        Instant tzait = getSunsetOffsetByDegrees(GEOMETRIC_ZENITH + degree);
+        Instant midnight = getSolarMidnight();
+        if (tzait == null || (midnight != null && tzait.isAfter(midnight))) {
+            return degree > 5.2 ? getDegreeTzetWithHaze(5.2) : midnight;
+        }
+        Duration haze = getHazeDelay(degree);
+        return haze == null ? tzait : tzait.plus(haze);
+    }
+
+    /**
+     * How much later (negative: earlier) nightfall by the stars comes this evening at the haze when the Sun is `degree` down
+     * than at the place's average haze then ({@link StarNightfall#hazeDelay}), within 15 minutes either way; null without
+     * haze data or with the haze setting off.
+     */
+    public Duration getHazeDelay(double degree) {
+        RefractionSupport.HazeDelayEntry e = RefractionSupport.hazeDelay(refractionData, getGeoLocation(), getLocalDate(), degree);
+        return e == null ? null : Duration.ofMillis(Math.round(e.ms));
+    }
+
+    /** Whether {@link #getHazeDelay(double)} is modeled or a bound standing in; null without haze data. */
+    public StarNightfall.HazeDelayStatus getHazeDelayStatus(double degree) {
+        RefractionSupport.HazeDelayEntry e = RefractionSupport.hazeDelay(refractionData, getGeoLocation(), getLocalDate(), degree);
+        return e == null ? null : e.status;
+    }
+
+    /** Mincha Gedola L'Ikar: 6.5 seasonal hours after sunrise. */
+    public Instant getMinchaGedolahIkar() {
+        return getShaahZmanisBasedZman(getSunriseBasedOnElevationSetting(), getSunsetBasedOnElevationSetting(), 6.5);
+    }
+
+    /** Plag HaMincha of the Ma'amar Mordechai: 1.25 hours before tzeit, in hours of the day from dawn to tzeit. */
+    public Instant getPlagHaminchaMaamarMordechi() {
+        Instant alot = getAlotHashachar();
+        Instant tzeit = getTzeit();
+        if (alot == null || tzeit == null) {
+            return null;
+        }
+        long nanos = (long) (Duration.between(alot, tzeit).toNanos() * (1.25 / 12));
+        return tzeit.minusNanos(nanos);
+    }
+
+    /** The latest time for the Seudah (e.g. on Erev Pesach): 9 seasonal hours after sunrise. */
+    public Instant getSofZmanSeuda() {
+        return getShaahZmanisBasedZman(getSunriseBasedOnElevationSetting(), getSunsetBasedOnElevationSetting(), 9);
+    }
+
+    /** The latest time for melakha before Shabbat (the earlier of 2.5 hours and 2.5 seasonal hours before sunset). */
+    public Instant getSofZmanMelakha() {
+        Instant sunset = getSunsetBasedOnElevationSetting();
+        Instant seasonal = getShaahZmanisBasedZman(getSunriseBasedOnElevationSetting(), sunset, 9.5);
+        if (sunset == null) {
+            return null;
+        }
+        Instant fixed = sunset.minus(Duration.ofMinutes(150));
+        return seasonal == null || fixed.isBefore(seasonal) ? fixed : seasonal;
+    }
+
+    /** The Sun 18 degrees below the horizon after sunset (astronomical nightfall). */
+    public Instant getAsiTzet() {
+        return getSunsetOffsetByDegrees(GEOMETRIC_ZENITH + 18);
     }
 
     /**
@@ -681,9 +869,14 @@ public class ROZmanimCalendar extends ZmanimCalendar {
      * @return the percentage, or null if it can't be computed
      */
     private Double getEquinoxPercentOfShaahZmanis(double degrees, boolean sunset) {
-        ROZmanimCalendar equinox = getCopy();
-        equinox.setLocalDate(LocalDate.of(getLocalDate().getYear(), Month.MARCH, 17));
-        double percentage = equinox.getPercentOfShaahZmanisFromDegrees(degrees, sunset);
+        // the same for every date of a year, but asked for by every calendar of the place: cached per data, place and year
+        int year = getLocalDate().getYear();
+        double percentage = RefractionSupport.cachedNumber(refractionData, getGeoLocation(),
+                "equinox|" + year + "|" + degrees + "|" + sunset + "|" + isUseElevation(), () -> {
+                    ROZmanimCalendar equinox = getCopy();
+                    equinox.setLocalDate(LocalDate.of(year, Month.MARCH, 17));
+                    return equinox.getPercentOfShaahZmanisFromDegrees(degrees, sunset);
+                });
         return percentage == Double.MIN_VALUE ? null : percentage;
     }
 
@@ -692,8 +885,8 @@ public class ROZmanimCalendar extends ZmanimCalendar {
      * @return a copy of this ROZmanimCalendar object
      */
     public ROZmanimCalendar getCopy() {
-        ROZmanimCalendar copy = new ROZmanimCalendar(getGeoLocation());
-        copy.vSunriseDates = this.vSunriseDates;
+        ROZmanimCalendar copy = newInstance(getGeoLocation(), refractionData);
+        copy.setUseElevation(isUseElevation());
         copy.setCandleLightingOffset(getCandleLightingOffset());
         copy.setAteretTorahSunsetOffset(getAteretTorahSunsetOffset());
         copy.setAmudehHoraah(isUseAmudehHoraah());

@@ -50,6 +50,10 @@ public class ZmanimFactory {
                                   JewishDateInfo mJewishDateInfo,
                                  boolean add66MisheyakirZman) {
         ROZmanimCalendar mROZmanimCalendar = roZmanimCalendar.getCopy();
+        if (mROZmanimCalendar instanceof ZmanimListProvider listProvider) {// a calendar with its own list of zmanim
+            listProvider.addZmanim(zmanim, isForWeeklyZmanim, mSettingsPreferences, mSharedPreferences, mJewishDateInfo);
+            return;
+        }
         mROZmanimCalendar.setAmudehHoraah(mSettingsPreferences.getBoolean("LuachAmudeiHoraah", false));
 
         ZmanimNames zmanimNames = new ZmanimNames(
@@ -98,10 +102,14 @@ public class ZmanimFactory {
                     HANETZ_ZMAN,
                     ""));
         }
-        if (mROZmanimCalendar.getHaNetz() != null && !mSharedPreferences.getBoolean("showMishorSunrise" + mROZmanimCalendar.getGeoLocation().getLocationName(), true)) {
+        // the visible sunrise over the refraction server's terrain horizon
+        boolean showVisibleSunrise = mROZmanimCalendar.getHaNetz() != null;
+        if (showVisibleSunrise) {
+            // to the second when it is traced through the day's weather
+            boolean withSeconds = mROZmanimCalendar.isSunriseWeatherBased();
             zmanim.add(new ZmanListEntry(zmanimNames.getHaNetzString(),
                     mROZmanimCalendar.getHaNetz(),
-                    ALWAYS_DISPLAY,
+                    withSeconds ? ALWAYS_DISPLAY : ROUND_LATER,
                     HANETZ_ZMAN,
                     "HaNetz"));
         } else {
@@ -111,9 +119,7 @@ public class ZmanimFactory {
                     HANETZ_ZMAN,
                     "HaNetz"));
         }
-        if (mROZmanimCalendar.getHaNetz() != null &&
-                !mSharedPreferences.getBoolean("showMishorSunrise" + mROZmanimCalendar.getGeoLocation().getLocationName(), true) &&
-                mSettingsPreferences.getBoolean("ShowMishorAlways", false)) {
+        if (showVisibleSunrise && mSettingsPreferences.getBoolean("ShowMishorAlways", false)) {
             zmanim.add(new ZmanListEntry(zmanimNames.getHaNetzString() + " (" + zmanimNames.getMishorString() + ")",
                     mROZmanimCalendar.getSeaLevelSunrise(),
                     ROUND_LATER,
