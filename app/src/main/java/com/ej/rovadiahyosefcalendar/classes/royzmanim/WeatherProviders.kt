@@ -101,6 +101,8 @@ object SunsetAir {
 class EventNormals(
     val sunriseC: DoubleArray, val sunsetC: DoubleArray, val heightM: Double, val years: Pair<Int, Int>, val source: String,
     val sunriseDewC: DoubleArray? = null, val sunsetDewC: DoubleArray? = null,
+    /** The centre of the reanalysis grid cell Open-Meteo answered from (lat, lon), when it said. */
+    val cell: DoubleArray? = null,
 ) {
     fun toMonthly() = Refraction.MonthlyNormals(sunriseC, sunsetC, null, heightM, sunriseDewC, sunsetDewC)
     fun provider(): ClimatologyProvider = Refraction.monthlyClimate(toMonthly())
@@ -110,6 +112,7 @@ class EventNormals(
         put("heightM", heightM); put("years", JSONArray(listOf(years.first, years.second))); put("source", source)
         sunriseDewC?.let { put("sunriseDewC", JSONArray(it.toList())) }
         sunsetDewC?.let { put("sunsetDewC", JSONArray(it.toList())) }
+        cell?.let { put("cell", JSONArray(it.toList())) }
     }
 
     companion object {
@@ -123,7 +126,7 @@ class EventNormals(
             if (sr.size != 12 || ss.size != 12) return null
             val y = j.optJSONArray("years")
             return EventNormals(sr, ss, j.optDouble("heightM", 0.0), Pair(y?.optInt(0) ?: 0, y?.optInt(1) ?: 0), j.optString("source"),
-                arr(j.optJSONArray("sunriseDewC")), arr(j.optJSONArray("sunsetDewC")))
+                arr(j.optJSONArray("sunriseDewC")), arr(j.optJSONArray("sunsetDewC")), arr(j.optJSONArray("cell"))?.takeIf { it.size == 2 })
         }
     }
 }
@@ -213,7 +216,7 @@ object OpenMeteo {
             if ((dew.first + dew.second).all { it.isFinite() }) { sunriseDew = dew.first; sunsetDew = dew.second }
         }
         return EventNormals(sunriseC, sunsetC, j.optDouble("elevation", 0.0).takeIf { it.isFinite() } ?: 0.0, Pair(startYear, endYear),
-            "Open-Meteo archive (ECMWF ERA5)", sunriseDew, sunsetDew)
+            "Open-Meteo archive (ECMWF ERA5)", sunriseDew, sunsetDew, WeatherHttp.reportedCell(j))
     }
 
     /** valueAt on hourly intervals by index arithmetic (the archive is ~40,000 hours: a linear scan per day is too slow). */
@@ -435,7 +438,7 @@ object OpenMeteoPath {
         return noon + (if (event == SolarEvent.SUNRISE) -H else H) / 15 * 3600000
     }
 
-    private class Series(val times: LongArray, val cols: JSONObject, val elevation: Double, val levels: List<Int>) {
+    private class Series(val times: LongArray, val cols: JSONObject, val elevation: Double, val levels: List<Int>, val cell: DoubleArray? = null) {
         fun at(name: String, t: Double): Double {
             val col = cols.optJSONArray(name) ?: return Double.NaN
             if (times.isEmpty()) return Double.NaN
@@ -457,7 +460,7 @@ object OpenMeteoPath {
             fun has(k: String): Boolean { val a = cols.optJSONArray(k) ?: return false; return (0 until a.length()).any { !a.isNull(it) } }
             val time = cols.optJSONArray("time")
             Series(LongArray(time?.length() ?: 0) { time!!.getLong(it) }, cols, j.optDouble("elevation", Double.NaN),
-                levels.filter { p -> has("temperature_${p}hPa") && has("geopotential_height_${p}hPa") })
+                levels.filter { p -> has("temperature_${p}hPa") && has("geopotential_height_${p}hPa") }, WeatherHttp.reportedCell(j))
         }
     }
 
@@ -476,6 +479,8 @@ object OpenMeteoPath {
         private var fetchedAt = 0L
         @Volatile var coverage: LongArray? = null
         @Volatile var lastError: Exception? = null
+        /** The centre of the model's grid cell around the observer (lat, lon), as Open-Meteo reported it. */
+        @Volatile var cell: DoubleArray? = null
         private val dists = DEFAULT_DISTANCES_KM
 
         private fun levelsFor(m: String) = if (Regex("^(cmc_)?gem").containsMatchIn(m)) GEM_LEVELS_MB else DEFAULT_LEVELS_MB
@@ -535,6 +540,7 @@ object OpenMeteoPath {
             val ends = listOf(newFc, newFb).filter { it.isNotEmpty() }.map { it[0].times }
             synchronized(built) {
                 fans = newFans; fc = newFc; fb = newFb; marine = newMarine; built.clear()
+                cell = any[0].cell
                 fetchedAt = now
                 coverage = longArrayOf(ends.minOf { it[0] } * 1000, ends.maxOf { it[it.size - 1] } * 1000)
                 stamp = ends.joinToString(".") { it[0].toString() }

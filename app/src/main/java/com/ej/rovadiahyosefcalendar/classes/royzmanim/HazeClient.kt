@@ -42,7 +42,8 @@ object HazeClient {
         return HazeSeries(lat, lon, times.getLong(0).toDouble(), (times.getLong(1) - times.getLong(0)).toDouble(), guardAod(raw, "CAMS via Open-Meteo"))
     }
 
-    class HazeNormals(val normals: HazeSeries, val normalsRange: Pair<String, String>, val source: String)
+    /** cell: the centre of the CAMS grid cell Open-Meteo answered from (lat, lon), when it said. */
+    class HazeNormals(val normals: HazeSeries, val normalsRange: Pair<String, String>, val source: String, val cell: DoubleArray? = null)
 
     /** CAMS's archive at a place, hourly (August 2022 to the end of last month), for the averages. */
     @JvmStatic
@@ -51,7 +52,7 @@ object HazeClient {
         val end = now.withDayOfMonth(1).minusDays(1).toString()
         val url = "$AQ_URL?latitude=${f4(latitude)}&longitude=${f4(longitude)}&hourly=aerosol_optical_depth&start_date=$HAZE_HISTORY_START&end_date=$end&timeformat=unixtime&timezone=GMT"
         val j = WeatherHttp.getOpenMeteo(url, timeoutMs = 60000) as JSONObject
-        return HazeNormals(seriesOf(j, latitude, longitude), Pair(HAZE_HISTORY_START, end), "CAMS global via Open-Meteo air-quality API")
+        return HazeNormals(seriesOf(j, latitude, longitude), Pair(HAZE_HISTORY_START, end), "CAMS global via Open-Meteo air-quality API", WeatherHttp.reportedCell(j))
     }
 
     /** CAMS's forecast haze, hourly, yesterday to `days` ahead. */

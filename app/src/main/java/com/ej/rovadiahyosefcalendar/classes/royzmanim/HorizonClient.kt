@@ -25,11 +25,12 @@ object HorizonClient {
         val terrain: TerrainVersion get() = terrainOf(json)
     }
 
-    private fun query(lat: Double, lon: Double, area: Boolean, radiusKm: Double?, heightM: Double?, moon: Boolean, version: String?): String {
+    private fun query(lat: Double, lon: Double, area: Boolean, radiusKm: Double?, heightM: Double?, moon: Boolean, version: String?, outline: Boolean = false): String {
         val q = ArrayList<String>()
         q.add("lat=" + String.format(Locale.ROOT, "%.6f", lat))
         q.add("lon=" + String.format(Locale.ROOT, "%.6f", lon))
         if (area) q.add("area=auto")
+        if (area && outline) q.add("outline=1")
         if (radiusKm != null && radiusKm != 0.0) q.add("radius_km=$radiusKm")
         if (heightM != null) q.add("height=$heightM")
         if (moon) q.add("moon=1")
@@ -56,11 +57,14 @@ object HorizonClient {
     fun fetchHorizon(baseUrl: String, lat: Double, lon: Double, radiusKm: Double? = null, heightM: Double? = null, version: String? = null): ServerHorizon =
         ServerHorizon(get("${baseUrl.trimEnd('/')}/v1/horizon?${query(lat, lon, false, radiusKm, heightM, false, version)}", "horizon"))
 
-    /** Vantage search over the official area (neighbourhood, village, city) containing the point; the server picks the area. */
+    /**
+     * Vantage search over the official area (neighbourhood, village, city) containing the point; the server picks the area. The
+     * answer's `area` carries its outline (`polygons`), so a stored horizon can be reused exactly inside it.
+     */
     @JvmStatic
     @JvmOverloads
     fun fetchHorizonForArea(baseUrl: String, lat: Double, lon: Double, moon: Boolean = false, version: String? = null): ServerHorizon =
-        ServerHorizon(get("${baseUrl.trimEnd('/')}/v1/horizon?${query(lat, lon, true, null, null, moon, version)}", "horizon"))
+        ServerHorizon(get("${baseUrl.trimEnd('/')}/v1/horizon?${query(lat, lon, true, null, null, moon, version, outline = true)}", "horizon"))
 
     /** What the server would build the area's horizon from, without computing it (a few bytes). */
     @JvmStatic

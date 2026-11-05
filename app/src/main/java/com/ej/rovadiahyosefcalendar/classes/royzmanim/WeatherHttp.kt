@@ -90,6 +90,14 @@ object WeatherHttp {
     @JvmStatic
     fun num(a: JSONArray?, i: Int): Double = if (a == null || i >= a.length() || a.isNull(i)) Double.NaN else a.optDouble(i, Double.NaN)
 
+    /** The grid cell an Open-Meteo answer came from: its "latitude" / "longitude" are the cell's centre, not the point asked. */
+    @JvmStatic
+    fun reportedCell(o: JSONObject): DoubleArray? {
+        val lat = numOrNull(o, "latitude") ?: return null
+        val lon = numOrNull(o, "longitude") ?: return null
+        return doubleArrayOf(lat, lon)
+    }
+
     /** A JSON number, or null when absent / null. */
     @JvmStatic
     fun numOrNull(o: JSONObject, key: String): Double? = if (!o.has(key) || o.isNull(key)) null else o.optDouble(key, Double.NaN).takeIf { it.isFinite() }
