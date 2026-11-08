@@ -1,6 +1,10 @@
 package com.ej.rovadiahyosefcalendar
 
+import android.app.Activity
 import android.app.Application
+import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import androidx.preference.PreferenceManager
 import com.ej.rovadiahyosefcalendar.classes.handasi.HandasiHazemanCalendar
 import com.ej.rovadiahyosefcalendar.classes.royzmanim.RefractionRepository
@@ -20,6 +24,30 @@ class ZmanimApplication : Application() {
         // the calendar class in use (switch back to ROZmanimCalendar at its call sites for ROYZmanim alone)
         HandasiHazemanCalendar.init(this)
         settings.registerOnSharedPreferenceChangeListener(settingsListener)
+        registerActivityLifecycleCallbacks(foreground)
+    }
+
+    // While any screen is showing, the weather is refreshed when it goes stale (every 3 hours), not only when a screen opens:
+    // someone can leave the Netz countdown or the zmanim open all night. The screens listening to RefractionRepository redraw.
+    private val handler = Handler(Looper.getMainLooper())
+    private var startedActivities = 0
+    private val refreshTick = object : Runnable {
+        override fun run() {
+            handler.postDelayed(this, RefractionRepository.refreshLastPlace())
+        }
+    }
+    private val foreground = object : ActivityLifecycleCallbacks {
+        override fun onActivityStarted(activity: Activity) {
+            if (startedActivities++ == 0) handler.post(refreshTick)
+        }
+        override fun onActivityStopped(activity: Activity) {
+            if (--startedActivities == 0) handler.removeCallbacks(refreshTick)
+        }
+        override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {}
+        override fun onActivityResumed(activity: Activity) {}
+        override fun onActivityPaused(activity: Activity) {}
+        override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {}
+        override fun onActivityDestroyed(activity: Activity) {}
     }
 
     /** Kept as a field: SharedPreferences holds its listeners weakly. */

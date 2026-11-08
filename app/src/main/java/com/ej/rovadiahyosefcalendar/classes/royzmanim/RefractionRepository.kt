@@ -620,6 +620,7 @@ object RefractionRepository {
      */
     @JvmStatic
     fun ensureFresh(rawLat: Double, rawLon: Double) {
+        lastAsked = doubleArrayOf(rawLat, rawLon)
         if (dir == null || !RefractionSupport.enabled) return
         val key = places(rawLat, rawLon).key
         if (memory[key]?.fromCache == false && forecastStaleIn(rawLat, rawLon) > 0) return
@@ -629,6 +630,23 @@ object RefractionRepository {
         if (last != null && now - last < RETRY_MS) return
         lastAttempt[key] = now
         loadAsync(rawLat, rawLon)// listeners are told with the caller's coordinates
+    }
+
+    /** The place a screen last asked to keep fresh. */
+    @Volatile private var lastAsked: DoubleArray? = null
+
+    /**
+     * For while the app is on screen: refresh the place last shown when its forecast has gone stale (so a screen left open
+     * gets the new forecast every [FORECAST_TTL_MS], as on opening it), and say how long until it is worth checking again.
+     * Listeners are told when new data land.
+     */
+    @JvmStatic
+    fun refreshLastPlace(): Long {
+        val p = lastAsked ?: return RETRY_MS
+        ensureFresh(p[0], p[1])
+        val staleIn = if (RefractionSupport.enabled) forecastStaleIn(p[0], p[1]) else 0
+        // stale now (a load is under way, or failed offline): look again after the retry interval
+        return if (staleIn > 0) staleIn + 1_000 else RETRY_MS
     }
 
     /** Milliseconds until a place's stored forecast should be fetched again (0 = now / none). */
