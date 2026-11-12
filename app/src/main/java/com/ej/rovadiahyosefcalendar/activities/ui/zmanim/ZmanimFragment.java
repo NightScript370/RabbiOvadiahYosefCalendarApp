@@ -225,6 +225,16 @@ public class ZmanimFragment extends Fragment implements Consumer<Location> {
     private static final Duration AWAY_THRESHOLD = Duration.ofHours(2);
     private static LocalDate sLastTodayDate;// what "today" was the last time the user was in the app
 
+    public ZmanimFragment() {}
+
+    public static ZmanimFragment newInstance(String data) {
+        ZmanimFragment fragment = new ZmanimFragment();
+        Bundle args = new Bundle();
+        args.putString("key", data);
+        fragment.setArguments(args);
+        return fragment;
+    }
+
     @Override
     public void onAttach(@NonNull Context context) {
         super.onAttach(context);
@@ -255,6 +265,15 @@ public class ZmanimFragment extends Fragment implements Consumer<Location> {
             makamNames = new JSONArray(inputStreamToString(mActivity.getResources().openRawResource(Utils.isLocaleHebrew(mContext) ? R.raw.makam_names_he : R.raw.makam_names)));
         } catch (JSONException e) {
             e.printStackTrace();
+        }
+
+        if (sLastTimeUserWasInApp == null) {// first time the user sees this page in this process
+            // The process may have been started earlier by a notification, the widget or a reboot, which set sCurrentDateShown to the date at
+            // that time (possibly yesterday). Always start on today, before anything (like the location callbacks) uses the stale date.
+            ZoneId zone = sCurrentTimeZoneID == null ? ZoneId.systemDefault() : ZoneId.of(sCurrentTimeZoneID);
+            sCurrentDateShown = LocalDate.now(zone);
+            sROZmanimCalendar.setLocalDate(sCurrentDateShown);
+            sJewishDateInfo.setLocalDate(sCurrentDateShown);
         }
 
         if (sSharedPreferences.getBoolean("isSetup", false)) {
@@ -1851,7 +1870,7 @@ public class ZmanimFragment extends Fragment implements Consumer<Location> {
         }
 
         boolean awayTooLong = Duration.between(sLastTimeUserWasInApp, now).compareTo(AWAY_THRESHOLD) > 0;
-// a new day only moves the user along if they were looking at "today"; someone browsing another date keeps it
+        // a new day only moves the user along if they were looking at "today"; someone browsing another date keeps it
         boolean followToday = !today.equals(sLastTodayDate) && sLastTodayDate.equals(sCurrentDateShown);
 
         if (awayTooLong || followToday || sCurrentDateShown == null) {

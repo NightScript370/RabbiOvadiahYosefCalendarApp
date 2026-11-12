@@ -77,6 +77,16 @@ public class SiddurFragment extends Fragment {
     private Button mCalendarButton;
     private static boolean showAllPrayers = false;
 
+    public SiddurFragment() {}
+
+    public static SiddurFragment newInstance(String data) {
+        SiddurFragment fragment = new SiddurFragment();
+        Bundle args = new Bundle();
+        args.putString("key", data);
+        fragment.setArguments(args);
+        return fragment;
+    }
+
     @Override
     public void onAttach(@NonNull Context context) {
         super.onAttach(context);
@@ -99,15 +109,6 @@ public class SiddurFragment extends Fragment {
         super.onViewCreated(view, savedInstanceState);
         updateView();
         setupButtons();
-    }
-
-    @Override
-    public void onStart() {
-        super.onStart();
-        if (mActivity == null) return;
-        if (mActivity.findViewById(R.id.siddur_preferences_container) != null) {
-            updateView();
-        }
     }
 
     public void updateView() {
@@ -196,12 +197,6 @@ public class SiddurFragment extends Fragment {
         @Override
         public void onResume() {
             super.onResume();
-            initView();
-        }
-
-        @Override
-        public void onStart() {
-            super.onStart();
             initView();
         }
 

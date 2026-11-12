@@ -266,7 +266,7 @@ public class ROZmanimCalendar extends ZmanimCalendar {
         if (floor == null) {
             return getPreviousSolarMidnight();
         }
-        Instant seasonal = getAmudeiHoraahBeforeSunrise(16.04, 1);
+        Instant seasonal = getAmudeiHoraahBeforeSunrise(1);
         if (seasonal == null) {
             return floor;
         }
@@ -511,7 +511,7 @@ public class ROZmanimCalendar extends ZmanimCalendar {
         if (!amudehHoraah) {
             return getZmanisBasedOffset(0.225); // 13.5 / 60
         }
-        return getAmudeiHoraahAfterSunset(3.7, 1);
+        return getAmudeiHoraahAfterSunset(3.7);
     }
 
     /**
@@ -529,7 +529,7 @@ public class ROZmanimCalendar extends ZmanimCalendar {
             }
             return getTimeOffset(getSunsetBasedOnElevationSetting(), shaahZmanis.dividedBy(MINUTES_PER_HOUR).multipliedBy(20));// avoid using getZmanisOffset because of the trailing 33333
         }
-        return getAmudeiHoraahAfterSunset(5.075, 1);
+        return getAmudeiHoraahAfterSunset(5.075);
     }
 
     /**
@@ -605,7 +605,7 @@ public class ROZmanimCalendar extends ZmanimCalendar {
         if (getSunsetOffsetByDegrees(GEOMETRIC_ZENITH + 8.5) == null) {
             return getSolarMidnight();
         }
-        return getAmudeiHoraahAfterSunset(16.04, 1);
+        return getAmudeiHoraahAfterSunset(16.04);
     }
 
     public Instant getTzais72ForceRegZmanis() {
@@ -854,13 +854,13 @@ public class ROZmanimCalendar extends ZmanimCalendar {
         return Duration.ofNanos(Math.round(shaahZmanis.toNanos() * percentage * fraction));
     }
 
-    private Instant getAmudeiHoraahBeforeSunrise(double degrees, double fraction) {
-        Duration offset = getAmudeiHoraahOffset(degrees, false, fraction);
+    private Instant getAmudeiHoraahBeforeSunrise(double fraction) {
+        Duration offset = getAmudeiHoraahOffset(16.04, false, fraction);
         return offset == null ? null : getTimeOffset(getSunriseBasedOnElevationSetting(), offset.negated());
     }
 
-    private Instant getAmudeiHoraahAfterSunset(double degrees, double fraction) {
-        Duration offset = getAmudeiHoraahOffset(degrees, true, fraction);
+    private Instant getAmudeiHoraahAfterSunset(double degrees) {
+        Duration offset = getAmudeiHoraahOffset(degrees, true, 1);
         return offset == null ? null : getTimeOffset(getSunsetBasedOnElevationSetting(), offset);
     }
 

@@ -103,7 +103,12 @@ class ROYSPACalculator @JvmOverloads constructor(
     @Suppress("SENSELESS_COMPARISON")
     private fun clearResultCacheSafe() { if (resultCache != null) clearResultCache() }
 
-    fun clearResultCache() = synchronized(resultCache) { resultCache.clear() }
+    // KosherJava 3.1.0 keeps its own result cache in AstronomicalCalculator (keyed by date and place only): clear it too, since
+    // these settings change the results for the same date and place
+    public override fun clearResultCache() {
+        synchronized(resultCache) { resultCache.clear() }
+        super.clearResultCache()
+    }
 
     override fun getCalculatorName() = "Solar Position Algorithm (ROYZmanim corrections)"
 

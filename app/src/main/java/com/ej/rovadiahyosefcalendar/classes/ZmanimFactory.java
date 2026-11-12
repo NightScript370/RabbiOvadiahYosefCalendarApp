@@ -225,8 +225,8 @@ public class ZmanimFactory {
                         }
                     }
                 }
-                mROZmanimCalendar.setLocalDate(localDate.minusDays(1));
-                mJewishDateInfo.setLocalDate(mROZmanimCalendar.getLocalDate());
+                mROZmanimCalendar.setLocalDate(localDate);
+                mJewishDateInfo.setLocalDate(localDate);
             }
         }
         if (mJewishDateInfo.tomorrow().getJewishCalendar().isTishaBav()) {

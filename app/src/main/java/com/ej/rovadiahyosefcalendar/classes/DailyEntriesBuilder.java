@@ -41,6 +41,7 @@ import android.content.Context;
 import androidx.annotation.NonNull;
 
 import com.ej.rovadiahyosefcalendar.R;
+import com.kosherjava.zmanim.hebrewcalendar.HebrewDateFormatter;
 import com.kosherjava.zmanim.hebrewcalendar.JewishCalendar;
 import com.kosherjava.zmanim.hebrewcalendar.TefilaRules;
 import com.kosherjava.zmanim.util.ZmanimFormatter;
@@ -371,9 +372,15 @@ public class DailyEntriesBuilder {
             Instant tekufaDate = jc.getTekufaAsInstant(amudeiHoraah);
             if (!isTekufaToday(zmanimCalendarCopy, tekufaDate)) continue;
 
-            String label = "תקופת " + jc.getTekufaName(Utils.isLocaleHebrew(context))
+            HebrewDateFormatter hebrewDateFormatter = new HebrewDateFormatter();
+            hebrewDateFormatter.setHebrewFormat(Utils.isLocaleHebrew(context));
+
+            String label = hebrewDateFormatter.formatTekufaName(jc)
                     + (shortStyle ? " : " : " היום בשעה ") + noSecondDateFormat.format(tekufaDate);
-            String labelEn = "Tekufa " + jc.getTekufaName(Utils.isLocaleHebrew(context))
+            String labelEn = hebrewDateFormatter.formatTekufaName(jc)
+                    .replace("Tekufas", "Tekufa")
+                    .replace("Tishrei", "Tishri")
+                    .replace("Teves", "Tevet")
                     + (shortStyle ? " : " : " is today at ") + noSecondDateFormat.format(tekufaDate);
             list.add(new ZmanListEntry(Utils.isLocaleHebrew(context) ? label : labelEn, TEKUFA_TIME));
         }
